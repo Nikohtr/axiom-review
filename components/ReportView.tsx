@@ -48,6 +48,8 @@ export type Report = {
 
 type ReportViewProps = {
   report: Report;
+  showSuccessGlow?: boolean;
+  onAnalyzeAnother?: () => void;
 };
 
 function ScoreRing({ score, size = 72 }: { score: number; size?: number }) {
@@ -105,10 +107,73 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
   );
 }
 
+function SeverityStats({ issues }: { issues: ReportIssue[] }) {
+  const counts = { high: 0, medium: 0, low: 0 };
+  issues.forEach((i) => counts[i.severity]++);
+
+  const items = [
+    { label: "High", count: counts.high, color: "var(--severity-high)", bg: "#fef2f2" },
+    { label: "Medium", count: counts.medium, color: "var(--severity-medium)", bg: "#fffbeb" },
+    { label: "Low", count: counts.low, color: "var(--severity-low)", bg: "#eff6ff" },
+  ].filter((item) => item.count > 0);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      {items.map((item) => (
+        <span
+          key={item.label}
+          className="flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+          style={{ background: item.bg, color: item.color }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.color }} />
+          {item.count} {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function AccessibilityStats({ findings }: { findings: AccessibilityFinding[] }) {
+  const counts = { critical: 0, serious: 0, moderate: 0, minor: 0 };
+  findings.forEach((f) => counts[f.impact]++);
+
+  const items = [
+    { label: "Critical", count: counts.critical, color: "var(--impact-critical)", bg: "#fef2f2" },
+    { label: "Serious", count: counts.serious, color: "var(--impact-serious)", bg: "#fff7ed" },
+    { label: "Moderate", count: counts.moderate, color: "var(--impact-moderate)", bg: "#fffbeb" },
+    { label: "Minor", count: counts.minor, color: "var(--impact-minor)", bg: "#eff6ff" },
+  ].filter((item) => item.count > 0);
+
+  if (items.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-2">
+      {items.map((item) => (
+        <span
+          key={item.label}
+          className="flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+          style={{ background: item.bg, color: item.color }}
+        >
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: item.color }} />
+          {item.count} {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 type SectionId = "issues" | "accessibility" | "mobile";
 
-export default function ReportView({ report }: ReportViewProps) {
+export default function ReportView({ report, showSuccessGlow, onAnalyzeAnother }: ReportViewProps) {
   const [activeSection, setActiveSection] = useState<SectionId>("issues");
+  const [tabKey, setTabKey] = useState(0);
+
+  const handleTabChange = (id: SectionId) => {
+    setActiveSection(id);
+    setTabKey((k) => k + 1);
+  };
 
   const sections: { id: SectionId; label: string; count: number }[] = [
     { id: "issues", label: "Top Issues", count: report.topIssues.length },
@@ -119,7 +184,7 @@ export default function ReportView({ report }: ReportViewProps) {
   return (
     <section data-print="report" className="stagger-children flex flex-col gap-0">
       {/* Header bar */}
-      <div className="flex items-center justify-between rounded-t-xl border border-[var(--border)] bg-white px-6 py-4">
+      <div className={`flex items-center justify-between rounded-t-xl border border-[var(--border)] bg-white px-6 py-4 transition-all duration-1000 ${showSuccessGlow ? "animate-success-glow" : ""}`}>
         <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
@@ -197,33 +262,42 @@ export default function ReportView({ report }: ReportViewProps) {
 
         {/* Right: Findings */}
         <div className="split-scroll flex flex-col">
-          {/* Section tabs */}
-          <div className="print:hidden sticky top-16 z-10 flex border-b border-[var(--border)] bg-white">
-            {sections.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setActiveSection(s.id)}
-                className={`flex items-center gap-1.5 px-5 py-3 text-xs font-medium transition ${
-                  activeSection === s.id
-                    ? "border-b-2 border-[var(--accent)] text-[var(--accent)]"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-                }`}
-              >
-                {s.label}
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
-                  activeSection === s.id
-                    ? "bg-[var(--accent)]/10 text-[var(--accent)]"
-                    : "bg-[var(--surface-warm)] text-[var(--text-muted)]"
-                }`}>
-                  {s.count}
-                </span>
-              </button>
-            ))}
+          {/* Section tabs + severity stats */}
+          <div className="print:hidden sticky top-16 z-10 border-b border-[var(--border)] bg-white">
+            <div className="flex items-center">
+              <div className="flex">
+                {sections.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => handleTabChange(s.id)}
+                    className={`flex items-center gap-1.5 px-5 py-3 text-xs font-medium transition ${
+                      activeSection === s.id
+                        ? "border-b-2 border-[var(--accent)] text-[var(--accent)]"
+                        : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                    }`}
+                  >
+                    {s.label}
+                    <span className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
+                      activeSection === s.id
+                        ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                        : "bg-[var(--surface-warm)] text-[var(--text-muted)]"
+                    }`}>
+                      {s.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="ml-auto pr-4">
+                {activeSection === "issues" && <SeverityStats issues={report.topIssues} />}
+                {activeSection === "accessibility" && <AccessibilityStats findings={report.accessibilityFindings} />}
+                {activeSection === "mobile" && report.mobileAnalysis && <SeverityStats issues={report.mobileAnalysis.issues} />}
+              </div>
+            </div>
           </div>
 
-          {/* Tab content */}
-          <div className="stagger-children flex flex-col gap-0 p-1">
+          {/* Tab content with crossfade */}
+          <div key={tabKey} className="animate-tab-fade flex flex-col gap-0 p-1">
             {activeSection === "issues" &&
               report.topIssues.map((issue, i) => (
                 <IssueCard key={issue.issue} issue={issue} index={i + 1} />
@@ -244,6 +318,22 @@ export default function ReportView({ report }: ReportViewProps) {
         </div>
       </div>
 
+      {/* Analyze another CTA */}
+      {onAnalyzeAnother && (
+        <div className="flex items-center justify-center rounded-b-xl border border-t-0 border-[var(--border)] bg-[var(--surface-warm)] px-6 py-5">
+          <button
+            type="button"
+            onClick={onAnalyzeAnother}
+            className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-white px-6 py-3 text-sm font-semibold text-[var(--text-secondary)] shadow-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)] hover:shadow-md active:scale-[0.98]"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="1 4 1 10 7 10" />
+              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+            </svg>
+            Analyze another site
+          </button>
+        </div>
+      )}
     </section>
   );
 }

@@ -1,18 +1,25 @@
-import type { FormEvent } from "react";
+"use client";
+
+import { type FormEvent, type RefObject, useState } from "react";
 
 type UrlFormProps = {
   url: string;
   isLoading: boolean;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onUrlChange: (value: string) => void;
+  inputRef?: RefObject<HTMLInputElement | null>;
   compact?: boolean;
+  showShortcutHint?: boolean;
 };
 
-export default function UrlForm({ url, isLoading, onSubmit, onUrlChange, compact }: UrlFormProps) {
+export default function UrlForm({ url, isLoading, onSubmit, onUrlChange, inputRef, compact, showShortcutHint }: UrlFormProps) {
+  const [isFocused, setIsFocused] = useState(false);
+
   if (compact) {
     return (
       <form className="flex w-full items-center gap-2" onSubmit={onSubmit} noValidate>
         <input
+          ref={inputRef}
           type="text"
           inputMode="url"
           autoComplete="url"
@@ -40,6 +47,8 @@ export default function UrlForm({ url, isLoading, onSubmit, onUrlChange, compact
     );
   }
 
+  const showHint = showShortcutHint && !isFocused && !url;
+
   return (
     <form className="flex w-full flex-col gap-2" onSubmit={onSubmit} noValidate>
       <div className="flex w-full flex-col gap-2 sm:flex-row">
@@ -51,6 +60,7 @@ export default function UrlForm({ url, isLoading, onSubmit, onUrlChange, compact
             </svg>
           </div>
           <input
+            ref={inputRef}
             type="text"
             inputMode="url"
             autoComplete="url"
@@ -58,8 +68,17 @@ export default function UrlForm({ url, isLoading, onSubmit, onUrlChange, compact
             aria-label="Website URL"
             value={url}
             onChange={(e) => onUrlChange(e.target.value)}
-            className="h-14 w-full rounded-xl border border-[var(--border)] bg-white pl-11 pr-4 text-base text-[var(--foreground)] shadow-sm outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/15"
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            className="h-14 w-full rounded-xl border border-[var(--border)] bg-white pl-11 pr-20 text-base text-[var(--foreground)] shadow-sm outline-none transition placeholder:text-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/15"
           />
+          {showHint && (
+            <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">
+              <kbd className="inline-flex items-center gap-0.5 rounded-md border border-[var(--border)] bg-[var(--surface-warm)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">
+                <span className="text-[11px]">&#8984;</span>K
+              </kbd>
+            </div>
+          )}
         </div>
         <button
           type="submit"

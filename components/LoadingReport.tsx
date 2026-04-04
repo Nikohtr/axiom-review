@@ -44,7 +44,11 @@ function StepIcon({ icon, active }: { icon: string; active: boolean }) {
   );
 }
 
-export default function LoadingReport() {
+type LoadingReportProps = {
+  url?: string;
+};
+
+export default function LoadingReport({ url }: LoadingReportProps) {
   const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
@@ -55,62 +59,95 @@ export default function LoadingReport() {
     return () => timers.forEach((t) => t && clearTimeout(t));
   }, []);
 
+  const progressPercent = ((activeStep + 1) / STEPS.length) * 100;
+
+  const truncatedUrl = url && url.length > 50 ? url.slice(0, 50) + "..." : url;
+
   return (
     <section className="mx-auto max-w-2xl" aria-live="polite">
-      <div className="rounded-xl border border-[var(--border)] bg-white p-8">
-        <div className="flex flex-col items-center gap-6">
-          {/* Spinner */}
-          <div className="relative flex h-16 w-16 items-center justify-center">
-            <div className="absolute inset-0 rounded-full border-2 border-[var(--border-light)]" />
-            <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[var(--accent)]" style={{ animationDuration: "1.2s" }} />
-            <span className="text-lg" style={{ fontFamily: "var(--font-display)" }}>
-              {activeStep + 1}/{STEPS.length}
-            </span>
-          </div>
+      <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-white">
+        {/* Progress bar */}
+        <div className="h-1 w-full bg-[var(--border-light)]">
+          <div
+            className="loading-progress-fill h-full rounded-r-full bg-[var(--accent)] transition-all duration-700 ease-out"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
 
-          {/* Steps */}
-          <div className="flex w-full max-w-sm flex-col gap-3">
-            {STEPS.map((step, i) => {
-              const isActive = i === activeStep;
-              const isDone = i < activeStep;
-              return (
-                <div
-                  key={step.key}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-300 ${
-                    isActive
-                      ? "bg-[var(--surface-warm)]"
-                      : ""
-                  }`}
-                >
-                  {isDone ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  ) : (
-                    <StepIcon icon={step.icon} active={isActive} />
-                  )}
-                  <span
-                    className={`text-sm transition-colors duration-300 ${
+        <div className="p-8">
+          {/* URL being analyzed */}
+          {url && (
+            <div className="mb-6 flex items-center gap-2 rounded-lg bg-[var(--surface-warm)] px-3 py-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[var(--text-muted)]">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+              <span className="truncate text-xs font-medium text-[var(--text-secondary)]">{truncatedUrl}</span>
+            </div>
+          )}
+
+          <div className="flex flex-col items-center gap-6">
+            {/* Spinner */}
+            <div className="relative flex h-16 w-16 items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-2 border-[var(--border-light)]" />
+              <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[var(--accent)]" style={{ animationDuration: "1.2s" }} />
+              <span className="text-lg" style={{ fontFamily: "var(--font-display)" }}>
+                {activeStep + 1}/{STEPS.length}
+              </span>
+            </div>
+
+            {/* Steps */}
+            <div className="flex w-full max-w-sm flex-col gap-3">
+              {STEPS.map((step, i) => {
+                const isActive = i === activeStep;
+                const isDone = i < activeStep;
+                return (
+                  <div
+                    key={step.key}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-300 ${
                       isActive
-                        ? "font-medium text-[var(--foreground)]"
-                        : isDone
-                          ? "text-[var(--text-muted)] line-through decoration-[var(--border)]"
-                          : "text-[var(--text-muted)]"
+                        ? "bg-[var(--surface-warm)]"
+                        : ""
                     }`}
                   >
-                    {step.label}
-                  </span>
-                  {isActive && (
-                    <span className="ml-auto h-1.5 w-1.5 animate-pulse-warm rounded-full bg-[var(--accent)]" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                    {isDone ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    ) : (
+                      <StepIcon icon={step.icon} active={isActive} />
+                    )}
+                    <span
+                      className={`text-sm transition-colors duration-300 ${
+                        isActive
+                          ? "font-medium text-[var(--foreground)]"
+                          : isDone
+                            ? "text-[var(--text-muted)] line-through decoration-[var(--border)]"
+                            : "text-[var(--text-muted)]"
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                    {isActive && (
+                      <span className="ml-auto h-1.5 w-1.5 animate-pulse-warm rounded-full bg-[var(--accent)]" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
-          <p className="text-xs text-[var(--text-muted)]">
-            This usually takes 15–30 seconds
-          </p>
+            {/* Skeleton preview */}
+            <div className="mt-2 w-full max-w-sm space-y-2">
+              <div className="shimmer-bar h-2.5 w-3/4 rounded-full" />
+              <div className="shimmer-bar h-2.5 w-full rounded-full" style={{ animationDelay: "0.15s" }} />
+              <div className="shimmer-bar h-2.5 w-2/3 rounded-full" style={{ animationDelay: "0.3s" }} />
+            </div>
+
+            <p className="text-xs text-[var(--text-muted)]">
+              This usually takes 15-30 seconds
+            </p>
+          </div>
         </div>
       </div>
     </section>
