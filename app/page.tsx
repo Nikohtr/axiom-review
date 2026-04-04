@@ -26,34 +26,6 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState("");
   const [report, setReport] = useState<Report | null>(null);
 
-  const mockReport: Report = {
-    url: "https://example.com",
-    screenshot: "/placeholder.png",
-    pageTitle: "Example Domain",
-    uxSummary: "The page is simple but lacks a strong call to action and clear hierarchy.",
-    topIssues: [
-      {
-        title: "Weak CTA visibility",
-        severity: "high",
-        evidence: "There is no prominent button or action above the fold.",
-        fix: "Add a clear primary CTA in the hero section.",
-      },
-      {
-        title: "Minimal content structure",
-        severity: "medium",
-        evidence: "The page has very little supporting context for the user.",
-        fix: "Add supporting sections that explain value and next steps.",
-      },
-    ],
-    accessibilityFindings: [
-      {
-        id: "color-contrast",
-        impact: "serious",
-        description: "Some text may not meet contrast requirements.",
-      },
-    ],
-  };
-
   const isLoading = state === "loading";
 
   const normalizeUrl = (rawValue: string) => {
@@ -128,7 +100,6 @@ export default function Home() {
     setState("loading");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1400));
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
@@ -145,9 +116,7 @@ export default function Home() {
       setReport(data);
       setState("success");
     } catch {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setErrorMessage("Something went wrong. Showing a sample report for now.");
-      setReport({ ...mockReport, url: normalizedUrl });
+      setErrorMessage("Something went wrong. Please try again.");
       setState("error");
     }
   };
