@@ -122,7 +122,7 @@ export default function Home() {
   };
 
   const LoadingState = () => (
-    <span>Loading page, checking accessibility, generating feedback...</span>
+    <span>Loading page, checking accessibility, running mobile analysis, generating feedback...</span>
   );
 
   const ErrorMessage = ({ message }: { message: string }) => <span>{message}</span>;
@@ -132,7 +132,7 @@ export default function Home() {
       className={`${display.variable} ${body.variable} min-h-screen bg-[radial-gradient(900px_480px_at_15%_0%,#f9e4b8_0%,transparent_60%),radial-gradient(700px_420px_at_85%_10%,#cfeadf_0%,transparent_58%),linear-gradient(180deg,#fbfbf6_0%,#f1f2f4_100%)] px-6 py-16 text-zinc-900`}
     >
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-10 rounded-[28px] border border-zinc-200/60 bg-white/80 p-10 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.35)] backdrop-blur">
-        <div className="flex items-center gap-3">
+        <div className="print:hidden flex items-center gap-3">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-white shadow-sm">
             <img src="/logo.png" alt="Axiom Review logo" className="h-11 w-11 object-contain" />
           </div>
@@ -144,7 +144,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="print:hidden flex flex-col gap-6">
           <h1 className="max-w-2xl text-4xl leading-[1.05] sm:text-5xl" style={{ fontFamily: "var(--font-display)" }}>
             Paste any website URL and get an AI UX review.
           </h1>
@@ -153,10 +153,12 @@ export default function Home() {
           </p>
         </div>
 
-        <UrlForm url={url} isLoading={isLoading} onSubmit={handleSubmit} onUrlChange={handleUrlChange} />
+        <div className="print:hidden">
+          <UrlForm url={url} isLoading={isLoading} onSubmit={handleSubmit} onUrlChange={handleUrlChange} />
+        </div>
 
         <div
-          className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500"
+          className="print:hidden rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500"
           style={{ fontFamily: "var(--font-body)" }}
         >
           {state === "idle" && "Enter a URL to start the analysis."}

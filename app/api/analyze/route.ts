@@ -6,6 +6,29 @@ import type { NextRequest } from 'next/server'
 
 const client = new Anthropic()
 
+const MOBILE_SYSTEM_PROMPT = `You are a senior mobile UX analyst. You will be given a screenshot captured at 390px viewport width (mobile) and DOM data from a real mobile browser visit.
+
+Identify 2–4 mobile-specific UX issues. Return ONLY valid JSON — no markdown, no code fences — matching this exact shape:
+{
+  "issues": [
+    { "issue": "<short issue name>", "severity": "low"|"medium"|"high", "whyItMatters": "<why this hurts mobile users>", "suggestedFix": "<concrete recommendation>", "selector": "<CSS selector for the problematic element, or null>" }
+  ]
+}
+
+Focus exclusively on mobile concerns:
+- Touch targets too small (< 44×44 CSS px)
+- Content overflow or horizontal scroll
+- Body text too small to read (< 16px)
+- Viewport meta tag missing or misconfigured (causes desktop layout on mobile)
+- Tap targets spaced too close together (finger-fat error risk)
+- Mobile navigation problems (hamburger menu, sticky headers obscuring content)
+- Images not responsive / overflowing
+- Desktop-only interactions (hover states, right-click menus)
+- Inputs without font-size ≥ 16px (trigger iOS auto-zoom)
+- Fixed-width elements breaking the layout
+
+Order by severity descending. Be specific — cite actual element counts, IDs, or text. Only emit a selector you are confident exists on the page.`
+
 const SYSTEM_PROMPT = `You are a senior UX and accessibility analyst. You will be given:
 1. A webpage screenshot (for visual UX analysis)
 2. Extracted text content (headings, CTAs, meta)
@@ -300,6 +323,113 @@ export async function POST(request: NextRequest) {
       })
     )
 
+    // --- Mobile analysis pass ---
+    let mobileAnalysis: { screenshot: string; issues: Array<{ issue: string; severity: string; whyItMatters: string; suggestedFix: string; screenshot?: string }> } | null = null
+    try {
+      const mobileContext = await browser.newContext({
+        userAgent:
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+        locale: 'en-US',
+        extraHTTPHeaders: { 'Accept-Language': 'en-US,en;q=0.9' },
+      })
+      await mobileContext.addInitScript(() => {
+        Object.defineProperty(navigator, 'webdriver', { get: () => undefined })
+      })
+      const mobilePage = await mobileContext.newPage()
+      await mobilePage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 })
+      await mobilePage.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {})
+      await mobilePage.waitForTimeout(2000)
+
+      const mobileRawBuffer = await mobilePage.screenshot({ fullPage: true })
+      const mobileScreenshotBuffer = Buffer.from(mobileRawBuffer)
+      const mobileId = randomUUID()
+      await writeFile(`${screenshotsDir}/${mobileId}.png`, mobileScreenshotBuffer)
+      const mobileScreenshotPath = `/screenshots/${mobileId}.png`
+
+      // Lightweight DOM audit for mobile context
+      const mobileAudit = await mobilePage.evaluate(() => {
+        const viewportWidth = window.innerWidth
+        const hasViewportMeta = !!document.querySelector('meta[name="viewport"]')
+        const viewportContent = document.querySelector('meta[name="viewport"]')?.getAttribute('content') ?? ''
+
+        const smallTouchTargets = Array.from(
+          document.querySelectorAll('a, button, [role="button"], input[type="submit"], input[type="button"]')
+        )
+          .filter(el => {
+            const rect = (el as HTMLElement).getBoundingClientRect()
+            return rect.width > 0 && rect.height > 0 && (rect.width < 44 || rect.height < 44)
+          })
+          .map(el => (el as HTMLElement).outerHTML.slice(0, 100))
+          .slice(0, 8)
+
+        const bodyFontSize = parseFloat(getComputedStyle(document.body).fontSize)
+        const overflowingEls = Array.from(document.querySelectorAll('*'))
+          .filter(el => (el as HTMLElement).scrollWidth > viewportWidth + 5)
+          .map(el => `<${el.tagName.toLowerCase()}> scrollWidth=${(el as HTMLElement).scrollWidth}`)
+          .slice(0, 5)
+
+        return { hasViewportMeta, viewportContent, smallTouchTargets, bodyFontSize, overflowingEls }
+      })
+
+      const mobileTextContext = [
+        `URL: ${url}`,
+        `Viewport: 390px (mobile)`,
+        `Viewport meta tag present: ${mobileAudit.hasViewportMeta}`,
+        mobileAudit.viewportContent ? `Viewport content: ${mobileAudit.viewportContent}` : null,
+        `Body font-size: ${mobileAudit.bodyFontSize}px`,
+        mobileAudit.smallTouchTargets.length
+          ? `Touch targets < 44px (${mobileAudit.smallTouchTargets.length}):\n${mobileAudit.smallTouchTargets.join('\n')}`
+          : 'Touch targets: all appear adequately sized',
+        mobileAudit.overflowingEls.length
+          ? `Overflowing elements (${mobileAudit.overflowingEls.length}):\n${mobileAudit.overflowingEls.join('\n')}`
+          : 'Content overflow: none detected',
+      ]
+        .filter(Boolean)
+        .join('\n')
+
+      console.log('[analyze] calling Claude for mobile analysis...')
+      const mobileMessage = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2048,
+        system: MOBILE_SYSTEM_PROMPT,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: 'image/png', data: mobileScreenshotBuffer.toString('base64') },
+              },
+              { type: 'text', text: mobileTextContext },
+            ],
+          },
+        ],
+      })
+
+      const mobileRawText = mobileMessage.content[0].type === 'text' ? mobileMessage.content[0].text : ''
+      const mobileJsonText = mobileRawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+      const parsedMobile = JSON.parse(mobileJsonText) as { issues: Array<{ issue: string; severity: string; whyItMatters: string; suggestedFix: string; selector?: string | null }> }
+
+      // Element screenshots for mobile issues
+      const enrichedMobileIssues = await Promise.all(
+        parsedMobile.issues.map(async ({ selector, ...issue }) => {
+          if (!selector) return issue
+          const filename = `${mobileId}-mobile-${randomUUID()}.png`
+          const saved = await captureElementScreenshot(mobilePage, selector, `${screenshotsDir}/${filename}`)
+          return saved ? { ...issue, screenshot: `/screenshots/${filename}` } : issue
+        })
+      )
+
+      mobileAnalysis = { screenshot: mobileScreenshotPath, issues: enrichedMobileIssues }
+      console.log('[analyze] mobile analysis done')
+      await mobileContext.close()
+    } catch (err) {
+      console.error('[analyze] mobile analysis failed:', err)
+    }
+
     return Response.json({
       url,
       screenshot: screenshotPath,
@@ -308,6 +438,7 @@ export async function POST(request: NextRequest) {
       scores: analysis.scores,
       topIssues: enrichedTopIssues,
       accessibilityFindings: enrichedFindings,
+      mobileAnalysis,
     })
   } finally {
     await browser.close()

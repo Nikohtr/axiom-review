@@ -24,3 +24,58 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  @page {
+    margin: 1.5cm 1.8cm;
+    size: A4;
+  }
+
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Strip the page chrome */
+  body > div {
+    background: white !important;
+    padding: 0 !important;
+    min-height: unset !important;
+  }
+
+  main {
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Report section — clean, full-width */
+  [data-print="report"] {
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  /* Avoid page breaks inside issue cards */
+  [data-print="card"] {
+    break-inside: avoid;
+  }
+
+  /* Flatten the fixed-height screenshot containers */
+  [data-print="screenshot"] {
+    height: auto !important;
+    overflow: visible !important;
+    max-height: 280px;
+    overflow: hidden !important;
+  }
+
+  img {
+    max-width: 100%;
+  }
+}

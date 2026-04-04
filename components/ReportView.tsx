@@ -1,5 +1,6 @@
 import Image from "next/image";
 import AccessibilityList from "./AccessibilityList";
+import ExportButton from "./ExportButton";
 import IssueCard from "./IssueCard";
 
 export type ReportIssue = {
@@ -26,6 +27,11 @@ export type Scores = {
   overall: number;
 };
 
+export type MobileAnalysis = {
+  screenshot: string;
+  issues: ReportIssue[];
+};
+
 export type Report = {
   url: string;
   screenshot: string;
@@ -34,6 +40,7 @@ export type Report = {
   scores: Scores;
   topIssues: ReportIssue[];
   accessibilityFindings: AccessibilityFinding[];
+  mobileAnalysis?: MobileAnalysis | null;
 };
 
 type ReportViewProps = {
@@ -87,9 +94,12 @@ function ScorePanel({ scores }: { scores: Scores }) {
 
 export default function ReportView({ report }: ReportViewProps) {
   return (
-    <section className="flex flex-col gap-6 rounded-[22px] border border-zinc-200 bg-white p-6 shadow-sm">
+    <section data-print="report" className="flex flex-col gap-6 rounded-[22px] border border-zinc-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-1">
-        <span className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">Report</span>
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">Report</span>
+          <ExportButton />
+        </div>
         <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
           <span className="font-semibold text-zinc-900">{report.pageTitle}</span>
           <span className="text-zinc-300">•</span>
@@ -98,7 +108,7 @@ export default function ReportView({ report }: ReportViewProps) {
       </div>
 
       <div className="grid gap-6 md:grid-cols-[1.1fr_1fr]">
-        <div className="h-[320px] overflow-auto rounded-2xl border border-zinc-200 bg-zinc-100">
+        <div data-print="screenshot" className="h-[320px] overflow-auto rounded-2xl border border-zinc-200 bg-zinc-100">
           <Image
             src={report.screenshot}
             alt={`Screenshot of ${report.pageTitle}`}
@@ -129,6 +139,34 @@ export default function ReportView({ report }: ReportViewProps) {
           ))}
         </div>
       </div>
+
+      {report.mobileAnalysis && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/60 p-5">
+          <div className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400" aria-hidden="true">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+              <line x1="12" y1="18" x2="12.01" y2="18" />
+            </svg>
+            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">Mobile Analysis</p>
+          </div>
+          <div className="grid gap-6 md:grid-cols-[200px_1fr]">
+            <div className="h-[360px] overflow-auto rounded-xl border border-zinc-200 bg-zinc-100">
+              <Image
+                src={report.mobileAnalysis.screenshot}
+                alt="Mobile screenshot"
+                width={390}
+                height={844}
+                className="h-auto w-full"
+              />
+            </div>
+            <div className="flex flex-col gap-3">
+              {report.mobileAnalysis.issues.map((issue) => (
+                <IssueCard key={issue.issue} issue={issue} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
