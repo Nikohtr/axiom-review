@@ -1,7 +1,28 @@
 import { chromium } from 'playwright'
+import Anthropic from '@anthropic-ai/sdk'
 import { writeFile, mkdir } from 'fs/promises'
 import { randomUUID } from 'crypto'
 import type { NextRequest } from 'next/server'
+
+const client = new Anthropic()
+
+const SYSTEM_PROMPT = `You are a senior UX and accessibility analyst. You will be given a webpage screenshot and key text content extracted from the page.
+
+Analyze the UX quality and accessibility of the page. Return ONLY valid JSON — no markdown, no code fences — matching this exact shape:
+{
+  "uxSummary": "<2-3 sentence overall assessment>",
+  "topIssues": [
+    { "title": "<short issue name>", "severity": "low"|"medium"|"high", "evidence": "<what you observed>", "fix": "<concrete recommendation>" }
+  ],
+  "accessibilityFindings": [
+    { "id": "<kebab-case-id>", "impact": "minor"|"moderate"|"serious"|"critical", "description": "<what the issue is and why it matters>" }
+  ]
+}
+
+Rules:
+- topIssues: 3–5 items, ordered by severity descending
+- accessibilityFindings: 3–5 items, ordered by impact descending
+- Be specific — reference actual content visible in the screenshot`
 
 export async function POST(request: NextRequest) {
   let body: { url?: string }
@@ -58,18 +79,63 @@ export async function POST(request: NextRequest) {
   await writeFile(`${screenshotsDir}/${id}.png`, screenshotBuffer)
   const screenshotPath = `/screenshots/${id}.png`
 
-  // TODO: replace stub with real Claude analysis
+  // Build text context for the LLM
+  const textContext = [
+    `URL: ${url}`,
+    `Page title: ${pageTitle}`,
+    metaDesc ? `Meta description: ${metaDesc}` : null,
+    h1.length ? `H1: ${h1.join(' | ')}` : null,
+    h2.length ? `H2: ${h2.join(' | ')}` : null,
+    ctaText.length ? `Buttons/CTAs: ${ctaText.join(' | ')}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    system: SYSTEM_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: 'image/png',
+              data: screenshotBuffer.toString('base64'),
+            },
+          },
+          { type: 'text', text: textContext },
+        ],
+      },
+    ],
+  })
+
+  const rawText = message.content[0].type === 'text' ? message.content[0].text : ''
+
+  let analysis: {
+    uxSummary: string
+    topIssues: Array<{ title: string; severity: string; evidence: string; fix: string }>
+    accessibilityFindings: Array<{ id: string; impact: string; description: string }>
+  }
+
+  try {
+    analysis = JSON.parse(rawText)
+  } catch {
+    return Response.json(
+      { error: 'Failed to parse LLM response', raw: rawText },
+      { status: 500 }
+    )
+  }
+
   return Response.json({
     url,
     screenshot: screenshotPath,
     pageTitle,
-    uxSummary: `[STUB] Extracted from page — title: "${pageTitle}", H1: ${h1.join(', ') || 'none'}, meta: "${metaDesc || 'none'}"`,
-    topIssues: [
-      { title: 'Stub issue 1', severity: 'high', evidence: `CTAs found: ${ctaText.join(', ') || 'none'}`, fix: 'Pending Claude analysis' },
-      { title: 'Stub issue 2', severity: 'medium', evidence: `H2s found: ${h2.join(', ') || 'none'}`, fix: 'Pending Claude analysis' },
-    ],
-    accessibilityFindings: [
-      { id: 'stub-finding', impact: 'moderate', description: 'Pending Claude analysis' },
-    ],
+    uxSummary: analysis.uxSummary,
+    topIssues: analysis.topIssues,
+    accessibilityFindings: analysis.accessibilityFindings,
   })
 }
