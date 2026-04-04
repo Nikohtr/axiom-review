@@ -125,7 +125,7 @@ export default function ReportView({ report }: ReportViewProps) {
             <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
               {report.pageTitle}
             </h2>
-            <ExportButton />
+            <ExportButton report={report} />
           </div>
           <a
             href={report.url}
@@ -244,15 +244,6 @@ export default function ReportView({ report }: ReportViewProps) {
         </div>
       </div>
 
-      {/* Print-only: render all sections */}
-      <div className="hidden print:block">
-        <h3 className="mb-2 text-sm font-semibold">Top Issues</h3>
-        {report.topIssues.map((issue, i) => (
-          <IssueCard key={issue.issue} issue={issue} index={i + 1} />
-        ))}
-        <h3 className="mb-2 mt-4 text-sm font-semibold">Accessibility Findings</h3>
-        <AccessibilityList findings={report.accessibilityFindings} />
-      </div>
     </section>
   );
 }

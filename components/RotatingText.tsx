@@ -19,7 +19,7 @@ export default function RotatingText() {
   const [phraseIndex, setPhraseIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCursor, setShowCursor] = useState(true);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   // Blinking cursor
   useEffect(() => {
@@ -58,7 +58,7 @@ export default function RotatingText() {
 
   useEffect(() => {
     timeoutRef.current = setTimeout(tick, TYPE_SPEED);
-    return () => clearTimeout(timeoutRef.current);
+    return () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); };
   }, [tick]);
 
   return (

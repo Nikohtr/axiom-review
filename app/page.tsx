@@ -127,11 +127,11 @@ export default function Home() {
       {/* Top bar */}
       <header className="print:hidden sticky top-0 z-50 border-b border-[var(--border-light)] bg-[var(--background)]/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-white">
-              <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-white">
+              <img src="/logo.png" alt="" className="h-8 w-8 object-contain" />
             </div>
-            <span className="text-base tracking-tight text-[var(--foreground)]" style={{ fontFamily: "var(--font-display)" }}>
+            <span className="text-xl tracking-tight text-[var(--foreground)]" style={{ fontFamily: "var(--font-display)" }}>
               Axiom <span className="italic text-[var(--accent)]">Review</span>
             </span>
           </div>
