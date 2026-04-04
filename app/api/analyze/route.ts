@@ -259,7 +259,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[analyze] calling Claude...')
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-opus-4-1-20250805',
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       messages: [
@@ -392,7 +392,7 @@ export async function POST(request: NextRequest) {
 
       console.log('[analyze] calling Claude for mobile analysis...')
       const mobileMessage = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-opus-4-1-20250805',
         max_tokens: 2048,
         system: MOBILE_SYSTEM_PROMPT,
         messages: [

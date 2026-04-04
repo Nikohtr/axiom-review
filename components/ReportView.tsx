@@ -4,7 +4,13 @@ import { useState } from "react";
 import Image from "next/image";
 import AccessibilityList from "./AccessibilityList";
 import ExportButton from "./ExportButton";
+import FixPlayground from "./FixPlayground";
 import IssueCard from "./IssueCard";
+export type {
+  GeneratedFixes,
+  ImprovementBlock,
+  PrioritizedChange,
+} from "../types/fixPlayground";
 
 export type ReportIssue = {
   issue: string;
@@ -317,6 +323,8 @@ export default function ReportView({ report, showSuccessGlow, onAnalyzeAnother }
           </div>
         </div>
       </div>
+
+      <FixPlayground report={report} />
 
       {/* Analyze another CTA */}
       {onAnalyzeAnother && (
