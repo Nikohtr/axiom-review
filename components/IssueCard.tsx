@@ -1,38 +1,95 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import type { ReportIssue } from "./ReportView";
 
 type IssueCardProps = {
   issue: ReportIssue;
+  index: number;
 };
 
-export default function IssueCard({ issue }: IssueCardProps) {
+const severityConfig = {
+  high: { label: "High", color: "var(--severity-high)", bg: "#fef2f2" },
+  medium: { label: "Medium", color: "var(--severity-medium)", bg: "#fffbeb" },
+  low: { label: "Low", color: "var(--severity-low)", bg: "#eff6ff" },
+};
+
+export default function IssueCard({ issue, index }: IssueCardProps) {
+  const [copied, setCopied] = useState(false);
+  const config = severityConfig[issue.severity];
+
+  const copyFix = () => {
+    navigator.clipboard.writeText(issue.suggestedFix);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
-    <article data-print="card" className="rounded-2xl border border-zinc-200 bg-white px-5 py-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-base font-semibold text-zinc-900">{issue.issue}</h3>
-        <span className="shrink-0 rounded-full border border-zinc-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-zinc-500">
-          {issue.severity}
+    <article
+      data-print="card"
+      className={`severity-stripe severity-stripe-${issue.severity} card-lift border-b border-[var(--border-light)] px-5 py-4 last:border-b-0`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded text-[10px] font-semibold tabular-nums" style={{ background: config.bg, color: config.color }}>
+            {index}
+          </span>
+          <h3 className="text-sm font-semibold text-[var(--foreground)] leading-snug">{issue.issue}</h3>
+        </div>
+        <span
+          className="mt-0.5 shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+          style={{ background: config.bg, color: config.color }}
+        >
+          {config.label}
         </span>
       </div>
+
       {issue.screenshot && (
-        <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-100">
+        <div className="mt-3 ml-8 overflow-hidden rounded-lg border border-[var(--border)]">
           <Image
             src={issue.screenshot}
-            alt={`Screenshot highlighting: ${issue.issue}`}
+            alt={`Screenshot: ${issue.issue}`}
             width={480}
             height={200}
             className="h-auto w-full object-cover"
           />
         </div>
       )}
-      <div className="mt-3 flex flex-col gap-2">
+
+      <div className="mt-3 ml-8 flex flex-col gap-2.5">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Why it matters</p>
-          <p className="mt-1 text-sm text-zinc-600">{issue.whyItMatters}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">Why it matters</p>
+          <p className="mt-0.5 text-sm leading-relaxed text-[var(--text-secondary)]">{issue.whyItMatters}</p>
         </div>
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-zinc-400">Suggested fix</p>
-          <p className="mt-1 text-sm text-zinc-700">{issue.suggestedFix}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">Suggested fix</p>
+            <button
+              type="button"
+              onClick={copyFix}
+              className="print:hidden flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-[var(--text-muted)] transition hover:bg-[var(--surface-warm)] hover:text-[var(--accent)]"
+              title="Copy fix to clipboard"
+            >
+              {copied ? (
+                <>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Copied
+                </>
+              ) : (
+                <>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                  Copy
+                </>
+              )}
+            </button>
+          </div>
+          <p className="mt-0.5 text-sm leading-relaxed text-[var(--foreground)]">{issue.suggestedFix}</p>
         </div>
       </div>
     </article>

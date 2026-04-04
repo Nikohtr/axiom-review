@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Image from "next/image";
 import AccessibilityList from "./AccessibilityList";
 import ExportButton from "./ExportButton";
@@ -47,126 +50,209 @@ type ReportViewProps = {
   report: Report;
 };
 
-function scoreColor(score: number): string {
-  if (score >= 80) return "text-emerald-600";
-  if (score >= 60) return "text-amber-500";
-  return "text-red-500";
-}
+function ScoreRing({ score, size = 72 }: { score: number; size?: number }) {
+  const r = 28;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference - (score / 100) * circumference;
+  const color =
+    score >= 80 ? "var(--severity-low)" : score >= 60 ? "var(--severity-medium)" : "var(--severity-high)";
 
-function ScoreBar({ score }: { score: number }) {
-  const color = score >= 80 ? "bg-emerald-500" : score >= 60 ? "bg-amber-400" : "bg-red-500";
   return (
-    <div className="h-1.5 w-full rounded-full bg-zinc-100">
-      <div className={`h-1.5 rounded-full ${color} transition-all`} style={{ width: `${score}%` }} />
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox="0 0 64 64" className="-rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" stroke="var(--border-light)" strokeWidth="4" />
+        <circle
+          cx="32"
+          cy="32"
+          r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="score-ring"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-lg font-semibold leading-none" style={{ color }}>
+          {score}
+        </span>
+        <span className="text-[9px] text-[var(--text-muted)]">/ 100</span>
+      </div>
     </div>
   );
 }
 
-function ScorePanel({ scores }: { scores: Scores }) {
-  const items: { label: string; key: keyof Scores }[] = [
-    { label: "Accessibility", key: "accessibility" },
-    { label: "Clarity", key: "clarity" },
-    { label: "Usability", key: "usability" },
-  ];
+function ScoreBar({ label, score }: { label: string; score: number }) {
+  const color =
+    score >= 80 ? "var(--severity-low)" : score >= 60 ? "var(--severity-medium)" : "var(--severity-high)";
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">Overall Score</p>
-        <span className={`text-3xl font-bold tabular-nums ${scoreColor(scores.overall)}`}>
-          {scores.overall}
-          <span className="text-sm font-medium text-zinc-400">/100</span>
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-[var(--text-muted)]">{label}</span>
+        <span className="font-semibold tabular-nums" style={{ color }}>
+          {score}
         </span>
       </div>
-      <div className="flex flex-col gap-2.5">
-        {items.map(({ label, key }) => (
-          <div key={key} className="flex flex-col gap-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-zinc-500">{label}</span>
-              <span className={`font-semibold tabular-nums ${scoreColor(scores[key])}`}>{scores[key]}</span>
-            </div>
-            <ScoreBar score={scores[key]} />
-          </div>
-        ))}
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--border-light)]">
+        <div
+          className="h-full rounded-full transition-all duration-700"
+          style={{ width: `${score}%`, background: color, animation: "progress-fill 0.8s cubic-bezier(0.16,1,0.3,1) both" }}
+        />
       </div>
     </div>
   );
 }
 
+type SectionId = "issues" | "accessibility" | "mobile";
+
 export default function ReportView({ report }: ReportViewProps) {
+  const [activeSection, setActiveSection] = useState<SectionId>("issues");
+
+  const sections: { id: SectionId; label: string; count: number }[] = [
+    { id: "issues", label: "Top Issues", count: report.topIssues.length },
+    { id: "accessibility", label: "Accessibility", count: report.accessibilityFindings.length },
+    ...(report.mobileAnalysis ? [{ id: "mobile" as SectionId, label: "Mobile", count: report.mobileAnalysis.issues.length }] : []),
+  ];
+
   return (
-    <section data-print="report" className="flex flex-col gap-6 rounded-[22px] border border-zinc-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">Report</span>
-          <ExportButton />
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
-          <span className="font-semibold text-zinc-900">{report.pageTitle}</span>
-          <span className="text-zinc-300">•</span>
-          <span>{report.url}</span>
-        </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-[1.1fr_1fr]">
-        <div data-print="screenshot" className="h-[320px] overflow-auto rounded-2xl border border-zinc-200 bg-zinc-100">
-          <Image
-            src={report.screenshot}
-            alt={`Screenshot of ${report.pageTitle}`}
-            width={640}
-            height={420}
-            className="h-auto w-auto max-w-none"
-          />
-        </div>
-        <div className="flex flex-col gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">UX Summary</p>
-            <p className="mt-2 text-base text-zinc-700">{report.uxSummary}</p>
-          </div>
-          {report.scores && <ScorePanel scores={report.scores} />}
-        </div>
-      </div>
-
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">Accessibility Findings</p>
-        <AccessibilityList findings={report.accessibilityFindings} />
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">Top Issues</p>
-        <div className="grid gap-4 md:grid-cols-2">
-          {report.topIssues.map((issue) => (
-            <IssueCard key={issue.issue} issue={issue} />
-          ))}
-        </div>
-      </div>
-
-      {report.mobileAnalysis && (
-        <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/60 p-5">
+    <section data-print="report" className="stagger-children flex flex-col gap-0">
+      {/* Header bar */}
+      <div className="flex items-center justify-between rounded-t-xl border border-[var(--border)] bg-white px-6 py-4">
+        <div className="flex flex-col gap-0.5">
           <div className="flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-400" aria-hidden="true">
-              <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-              <line x1="12" y1="18" x2="12.01" y2="18" />
-            </svg>
-            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">Mobile Analysis</p>
+            <h2 className="text-lg font-semibold" style={{ fontFamily: "var(--font-display)" }}>
+              {report.pageTitle}
+            </h2>
+            <ExportButton />
           </div>
-          <div className="grid gap-6 md:grid-cols-[200px_1fr]">
-            <div className="h-[360px] overflow-auto rounded-xl border border-zinc-200 bg-zinc-100">
+          <a
+            href={report.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-[var(--text-muted)] underline decoration-[var(--border)] underline-offset-2 hover:text-[var(--accent)]"
+          >
+            {report.url}
+          </a>
+        </div>
+        <ScoreRing score={report.scores.overall} />
+      </div>
+
+      {/* Executive summary + sub-scores */}
+      <div className="border-x border-[var(--border)] bg-[var(--surface-warm)] px-6 py-5">
+        <div className="grid gap-6 md:grid-cols-[1fr_240px]">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)]">
+              Executive Summary
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]" style={{ fontFamily: "var(--font-display)" }}>
+              {report.uxSummary}
+            </p>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <ScoreBar label="Accessibility" score={report.scores.accessibility} />
+            <ScoreBar label="Clarity" score={report.scores.clarity} />
+            <ScoreBar label="Usability" score={report.scores.usability} />
+          </div>
+        </div>
+      </div>
+
+      {/* Split view: screenshot + findings */}
+      <div className="grid border border-t-0 border-[var(--border)] bg-white md:grid-cols-[minmax(300px,2fr)_3fr]">
+        {/* Left: Screenshot */}
+        <div className="border-b border-[var(--border)] md:border-b-0 md:border-r">
+          <div data-print="screenshot" className="sticky top-16 overflow-auto p-4" style={{ maxHeight: "calc(100vh - 80px)" }}>
+            <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-warm)]">
               <Image
-                src={report.mobileAnalysis.screenshot}
-                alt="Mobile screenshot"
-                width={390}
-                height={844}
+                src={report.screenshot}
+                alt={`Screenshot of ${report.pageTitle}`}
+                width={640}
+                height={420}
                 className="h-auto w-full"
               />
             </div>
-            <div className="flex flex-col gap-3">
-              {report.mobileAnalysis.issues.map((issue) => (
-                <IssueCard key={issue.issue} issue={issue} />
-              ))}
-            </div>
+            {report.mobileAnalysis && (
+              <div className="mt-4 flex items-start gap-3">
+                <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--surface-warm)]" style={{ width: 140 }}>
+                  <Image
+                    src={report.mobileAnalysis.screenshot}
+                    alt="Mobile screenshot"
+                    width={390}
+                    height={844}
+                    className="h-auto w-full"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5 rounded-md bg-[var(--surface-warm)] px-2 py-1">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-muted)]">
+                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                    <line x1="12" y1="18" x2="12.01" y2="18" />
+                  </svg>
+                  <span className="text-[10px] font-medium text-[var(--text-muted)]">Mobile view</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Right: Findings */}
+        <div className="split-scroll flex flex-col">
+          {/* Section tabs */}
+          <div className="print:hidden sticky top-16 z-10 flex border-b border-[var(--border)] bg-white">
+            {sections.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setActiveSection(s.id)}
+                className={`flex items-center gap-1.5 px-5 py-3 text-xs font-medium transition ${
+                  activeSection === s.id
+                    ? "border-b-2 border-[var(--accent)] text-[var(--accent)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+                }`}
+              >
+                {s.label}
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${
+                  activeSection === s.id
+                    ? "bg-[var(--accent)]/10 text-[var(--accent)]"
+                    : "bg-[var(--surface-warm)] text-[var(--text-muted)]"
+                }`}>
+                  {s.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
+          <div className="stagger-children flex flex-col gap-0 p-1">
+            {activeSection === "issues" &&
+              report.topIssues.map((issue, i) => (
+                <IssueCard key={issue.issue} issue={issue} index={i + 1} />
+              ))}
+
+            {activeSection === "accessibility" && (
+              <AccessibilityList findings={report.accessibilityFindings} />
+            )}
+
+            {activeSection === "mobile" && report.mobileAnalysis && (
+              <div className="flex flex-col gap-0">
+                {report.mobileAnalysis.issues.map((issue, i) => (
+                  <IssueCard key={issue.issue} issue={issue} index={i + 1} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Print-only: render all sections */}
+      <div className="hidden print:block">
+        <h3 className="mb-2 text-sm font-semibold">Top Issues</h3>
+        {report.topIssues.map((issue, i) => (
+          <IssueCard key={issue.issue} issue={issue} index={i + 1} />
+        ))}
+        <h3 className="mb-2 mt-4 text-sm font-semibold">Accessibility Findings</h3>
+        <AccessibilityList findings={report.accessibilityFindings} />
+      </div>
     </section>
   );
 }

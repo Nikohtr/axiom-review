@@ -1,69 +1,116 @@
-export default function LoadingReport() {
+"use client";
+
+import { useState, useEffect } from "react";
+
+const STEPS = [
+  { key: "capture", label: "Capturing screenshot", icon: "camera" },
+  { key: "scan", label: "Scanning accessibility", icon: "scan" },
+  { key: "analyze", label: "Analyzing UX patterns", icon: "brain" },
+  { key: "report", label: "Preparing report", icon: "doc" },
+] as const;
+
+function StepIcon({ icon, active }: { icon: string; active: boolean }) {
+  const cls = active ? "text-[var(--accent)]" : "text-[var(--border)]";
   return (
-    <section
-      className="flex flex-col gap-6 rounded-[22px] border border-zinc-200 bg-white p-6 shadow-sm"
-      aria-live="polite"
-    >
-      <div className="flex flex-col gap-2">
-        <span className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">
-          Analysis in progress
-        </span>
-        <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" aria-hidden="true" />
-          <span>Loading page, checking accessibility, generating feedback...</span>
-        </div>
-      </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+      {icon === "camera" && (
+        <>
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+          <circle cx="12" cy="13" r="4" />
+        </>
+      )}
+      {icon === "scan" && (
+        <>
+          <path d="M2 7V2h5" /><path d="M17 2h5v5" /><path d="M22 17v5h-5" /><path d="M7 22H2v-5" />
+          <line x1="7" y1="12" x2="17" y2="12" />
+        </>
+      )}
+      {icon === "brain" && (
+        <>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </>
+      )}
+      {icon === "doc" && (
+        <>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </>
+      )}
+    </svg>
+  );
+}
 
-      <div className="grid gap-6 md:grid-cols-[1.1fr_1fr]">
-        <div className="flex h-[230px] items-center justify-center rounded-2xl border border-zinc-200 bg-zinc-100">
-          <div className="flex items-center gap-3 text-sm text-zinc-500">
-            <span
-              className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-700"
-              aria-hidden="true"
-            />
-            <span>Capturing screenshot</span>
-          </div>
-        </div>
-        <div className="flex flex-col gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">UX Summary</p>
-            <div className="mt-3 flex flex-col gap-2">
-              <div className="h-3 w-full rounded-full bg-zinc-200" />
-              <div className="h-3 w-5/6 rounded-full bg-zinc-200" />
-              <div className="h-3 w-2/3 rounded-full bg-zinc-200" />
-            </div>
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">
-              Accessibility Findings
-            </p>
-            <div className="mt-3 flex flex-col gap-2">
-              <div className="h-3 w-4/5 rounded-full bg-zinc-200" />
-              <div className="h-3 w-2/3 rounded-full bg-zinc-200" />
-            </div>
-          </div>
-        </div>
-      </div>
+export default function LoadingReport() {
+  const [activeStep, setActiveStep] = useState(0);
 
-      <div className="flex flex-col gap-3">
-        <p className="text-xs font-semibold uppercase tracking-[0.26em] text-zinc-400">Top Issues</p>
-        <div className="grid gap-4 md:grid-cols-2">
-          {["first", "second"].map((key) => (
-            <div
-              key={key}
-              className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white px-5 py-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="h-3 w-1/2 rounded-full bg-zinc-200" />
-                <div className="h-6 w-16 rounded-full border border-zinc-200 bg-zinc-100" />
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="h-3 w-full rounded-full bg-zinc-200" />
-                <div className="h-3 w-5/6 rounded-full bg-zinc-200" />
-              </div>
-              <div className="h-3 w-2/3 rounded-full bg-zinc-200" />
-            </div>
-          ))}
+  useEffect(() => {
+    const timers = STEPS.map((_, i) => {
+      if (i === 0) return null;
+      return setTimeout(() => setActiveStep(i), i * 4000);
+    });
+    return () => timers.forEach((t) => t && clearTimeout(t));
+  }, []);
+
+  return (
+    <section className="mx-auto max-w-2xl" aria-live="polite">
+      <div className="rounded-xl border border-[var(--border)] bg-white p-8">
+        <div className="flex flex-col items-center gap-6">
+          {/* Spinner */}
+          <div className="relative flex h-16 w-16 items-center justify-center">
+            <div className="absolute inset-0 rounded-full border-2 border-[var(--border-light)]" />
+            <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-[var(--accent)]" style={{ animationDuration: "1.2s" }} />
+            <span className="text-lg" style={{ fontFamily: "var(--font-display)" }}>
+              {activeStep + 1}/{STEPS.length}
+            </span>
+          </div>
+
+          {/* Steps */}
+          <div className="flex w-full max-w-sm flex-col gap-3">
+            {STEPS.map((step, i) => {
+              const isActive = i === activeStep;
+              const isDone = i < activeStep;
+              return (
+                <div
+                  key={step.key}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-300 ${
+                    isActive
+                      ? "bg-[var(--surface-warm)]"
+                      : ""
+                  }`}
+                >
+                  {isDone ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    <StepIcon icon={step.icon} active={isActive} />
+                  )}
+                  <span
+                    className={`text-sm transition-colors duration-300 ${
+                      isActive
+                        ? "font-medium text-[var(--foreground)]"
+                        : isDone
+                          ? "text-[var(--text-muted)] line-through decoration-[var(--border)]"
+                          : "text-[var(--text-muted)]"
+                    }`}
+                  >
+                    {step.label}
+                  </span>
+                  {isActive && (
+                    <span className="ml-auto h-1.5 w-1.5 animate-pulse-warm rounded-full bg-[var(--accent)]" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-[var(--text-muted)]">
+            This usually takes 15–30 seconds
+          </p>
         </div>
       </div>
     </section>

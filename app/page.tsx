@@ -1,22 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Fraunces, IBM_Plex_Sans } from "next/font/google";
+import AnimatedBackground from "../components/AnimatedBackground";
 import LoadingReport from "../components/LoadingReport";
 import ReportView, { type Report } from "../components/ReportView";
+import RotatingText from "../components/RotatingText";
 import UrlForm from "../components/UrlForm";
 
-const display = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-display",
-  weight: ["500", "700"],
-});
-
-const body = IBM_Plex_Sans({
-  subsets: ["latin"],
-  variable: "--font-body",
-  weight: ["400", "500", "600"],
-});
+const EXAMPLE_URLS = [
+  { label: "Hacker News", url: "https://news.ycombinator.com" },
+  { label: "Wikipedia", url: "https://en.wikipedia.org" },
+  { label: "Craigslist", url: "https://craigslist.org" },
+];
 
 export default function Home() {
   type AnalyzeState = "idle" | "loading" | "success" | "error";
@@ -27,49 +22,31 @@ export default function Home() {
   const [report, setReport] = useState<Report | null>(null);
 
   const isLoading = state === "loading";
+  const showLanding = state === "idle" && !report;
 
   const normalizeUrl = (rawValue: string) => {
     const trimmedValue = rawValue.trim();
-
-    if (!trimmedValue) {
-      return "";
-    }
-
-    if (/^https?:\/\//i.test(trimmedValue)) {
-      return trimmedValue;
-    }
-
+    if (!trimmedValue) return "";
+    if (/^https?:\/\//i.test(trimmedValue)) return trimmedValue;
     return `https://${trimmedValue}`;
   };
 
   const handleUrlChange = (value: string) => {
     setUrl(value);
-
-    if (isLoading) {
-      return;
-    }
-
+    if (isLoading) return;
     if (!value.trim()) {
       setErrorMessage("");
       setReport(null);
       setState("idle");
       return;
     }
-
-    if (state === "error") {
-      setErrorMessage("");
-    }
-
-    if (report) {
-      setReport(null);
-    }
-
+    if (state === "error") setErrorMessage("");
+    if (report) setReport(null);
     setState("idle");
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     const normalizedUrl = normalizeUrl(url);
 
     if (!normalizedUrl) {
@@ -84,7 +61,6 @@ export default function Home() {
       const hostname = parsedUrl.hostname;
       const tldMatch = hostname.match(/\.([a-z]{2,24})$/i);
       const hasPublicTld = Boolean(tldMatch);
-
       if (!isHttp || !hostname || !hostname.includes(".") || !hasPublicTld) {
         throw new Error("Invalid protocol or host");
       }
@@ -102,16 +78,10 @@ export default function Home() {
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: normalizedUrl }),
       });
-
-      if (!response.ok) {
-        throw new Error("Request failed");
-      }
-
+      if (!response.ok) throw new Error("Request failed");
       const data: Report = await response.json();
       setReport(data);
       setState("success");
@@ -121,58 +91,147 @@ export default function Home() {
     }
   };
 
-  const LoadingState = () => (
-    <span>Loading page, checking accessibility, running mobile analysis, generating feedback...</span>
-  );
+  const handleExampleClick = (exampleUrl: string) => {
+    setUrl(exampleUrl);
+    const syntheticEvent = {
+      preventDefault: () => {},
+    } as React.FormEvent<HTMLFormElement>;
 
-  const ErrorMessage = ({ message }: { message: string }) => <span>{message}</span>;
+    setUrl(exampleUrl);
+    setErrorMessage("");
+    setReport(null);
+    setState("loading");
+
+    fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: exampleUrl }),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error("Request failed");
+        return response.json();
+      })
+      .then((data: Report) => {
+        setReport(data);
+        setState("success");
+      })
+      .catch(() => {
+        setErrorMessage("Something went wrong. Please try again.");
+        setState("error");
+      });
+  };
 
   return (
-    <div
-      className={`${display.variable} ${body.variable} min-h-screen bg-[radial-gradient(900px_480px_at_15%_0%,#f9e4b8_0%,transparent_60%),radial-gradient(700px_420px_at_85%_10%,#cfeadf_0%,transparent_58%),linear-gradient(180deg,#fbfbf6_0%,#f1f2f4_100%)] px-6 py-16 text-zinc-900`}
-    >
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-10 rounded-[28px] border border-zinc-200/60 bg-white/80 p-10 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.35)] backdrop-blur">
-        <div className="print:hidden flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-200 bg-white shadow-sm">
-            <img src="/logo.png" alt="Axiom Review logo" className="h-11 w-11 object-contain" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold uppercase tracking-[0.28em] text-zinc-500">
-              Axiom Review
+    <div className="paper-bg relative min-h-screen" style={{ fontFamily: "var(--font-body)" }}>
+      {showLanding && <AnimatedBackground />}
+      {/* Top bar */}
+      <header className="print:hidden sticky top-0 z-50 border-b border-[var(--border-light)] bg-[var(--background)]/90 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-white">
+              <img src="/logo.png" alt="" className="h-6 w-6 object-contain" />
+            </div>
+            <span className="text-base tracking-tight text-[var(--foreground)]" style={{ fontFamily: "var(--font-display)" }}>
+              Axiom <span className="italic text-[var(--accent)]">Review</span>
             </span>
-            <span className="text-xs text-zinc-400">AI UX Analyzer</span>
           </div>
-        </div>
-
-        <div className="print:hidden flex flex-col gap-6">
-          <h1 className="max-w-2xl text-4xl leading-[1.05] sm:text-5xl" style={{ fontFamily: "var(--font-display)" }}>
-            Paste any website URL and get an AI UX review.
-          </h1>
-          <p className="max-w-xl text-lg text-zinc-600" style={{ fontFamily: "var(--font-body)" }}>
-            Screenshot + accessibility scan + top issues in seconds.
-          </p>
-        </div>
-
-        <div className="print:hidden">
-          <UrlForm url={url} isLoading={isLoading} onSubmit={handleSubmit} onUrlChange={handleUrlChange} />
-        </div>
-
-        <div
-          className="print:hidden rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500"
-          style={{ fontFamily: "var(--font-body)" }}
-        >
-          {state === "idle" && "Enter a URL to start the analysis."}
-          {state === "loading" && <LoadingState />}
-          {state === "success" && "Analysis complete. Report is ready."}
-          {state === "error" && <ErrorMessage message={errorMessage} />}
-          {state === "idle" && (
-            <span className="ml-2 text-zinc-400">We will add https:// if you omit it.</span>
+          {!showLanding && (
+            <div className="animate-fade-in flex-1 max-w-md mx-8">
+              <UrlForm
+                url={url}
+                isLoading={isLoading}
+                onSubmit={handleSubmit}
+                onUrlChange={handleUrlChange}
+                compact
+              />
+            </div>
           )}
         </div>
+      </header>
 
-        {state === "loading" && <LoadingReport />}
-        {state !== "loading" && report && <ReportView report={report} />}
+      <main className="mx-auto max-w-6xl px-6">
+        {/* Landing state */}
+        {showLanding && (
+          <div className="relative flex min-h-[70vh] flex-col items-center justify-center py-20">
+            <AnimatedBackground />
+            <div className="stagger-children relative z-10 flex w-full max-w-xl flex-col items-center text-center">
+              <h1
+                className="mt-8 text-4xl leading-tight tracking-tight sm:text-5xl"
+                style={{ fontFamily: "var(--font-display)" }}
+              >
+                Get an expert UX review
+                <br />
+                <RotatingText />
+              </h1>
+
+              <p className="mt-4 max-w-md text-lg text-[var(--text-muted)]">
+                Paste any URL. Our AI captures the page, audits accessibility, and delivers
+                actionable feedback you can use right away.
+              </p>
+
+              <div className="mt-10 w-full">
+                <UrlForm
+                  url={url}
+                  isLoading={isLoading}
+                  onSubmit={handleSubmit}
+                  onUrlChange={handleUrlChange}
+                />
+              </div>
+
+              {errorMessage && (
+                <p className="mt-3 text-sm text-[var(--severity-high)]">{errorMessage}</p>
+              )}
+
+              <div className="mt-6 flex flex-col items-center gap-2">
+                <span className="text-xs text-[var(--text-muted)]">Or try an example</span>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {EXAMPLE_URLS.map((example) => (
+                    <button
+                      key={example.url}
+                      type="button"
+                      onClick={() => handleExampleClick(example.url)}
+                      disabled={isLoading}
+                      className="rounded-full border border-[var(--border)] bg-white px-4 py-1.5 text-sm text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--accent)] disabled:opacity-50"
+                    >
+                      {example.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {state === "loading" && (
+          <div className="animate-fade-up py-10">
+            <LoadingReport />
+          </div>
+        )}
+
+        {/* Error state (non-landing) */}
+        {state === "error" && !showLanding && (
+          <div className="animate-fade-up py-10">
+            <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          </div>
+        )}
+
+        {/* Report */}
+        {state !== "loading" && report && (
+          <div className="animate-fade-up py-10">
+            <ReportView report={report} />
+          </div>
+        )}
       </main>
+
+      {/* Footer */}
+      <footer className="print:hidden mt-auto border-t border-[var(--border-light)] py-6">
+        <div className="mx-auto max-w-6xl px-6 text-center text-xs text-[var(--text-muted)]">
+          Axiom Review uses AI to analyze UX patterns. Results are suggestions, not guarantees.
+        </div>
+      </footer>
     </div>
   );
 }
