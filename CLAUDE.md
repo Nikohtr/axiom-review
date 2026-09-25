@@ -29,7 +29,8 @@ This is a single-page AI UX analyzer called **Axiom Review**. The user pastes a 
 
 - `app/page.tsx` — sole page; `"use client"` component owning all state (`idle | loading | success | error`). Calls `POST /api/analyze` and renders results. Falls back to a `mockReport` on API error.
 - `app/layout.tsx` — root layout; loads Geist fonts as CSS variables
-- `app/api/analyze/` — **does not exist yet**; needs to be created as a Route Handler (`route.ts`) to handle the analysis request
+- `app/api/analyze/route.ts` — Playwright visit (desktop + mobile), in-page DOM accessibility audit, Claude vision call returning strict JSON, element-level screenshots for every finding with a selector
+- `app/api/generate-fixes/route.ts` — turns a report into the fix playground (typed with runtime guards, deterministic fallback on model error)
 
 ### Component hierarchy
 
@@ -38,8 +39,10 @@ page.tsx
 ├── UrlForm          — controlled URL input + submit button
 ├── LoadingReport    — skeleton/spinner shown while fetching
 └── ReportView       — renders a completed Report
-    ├── IssueCard    — single UX issue (title, severity, evidence, fix)
-    └── AccessibilityList — list of accessibility findings
+    ├── IssueCard    — single UX issue (title, severity, evidence, fix, element screenshot)
+    ├── AccessibilityList — list of accessibility findings
+    ├── FixPlayground — calls /api/generate-fixes, shows before/after + prioritised changes
+    └── ExportButton  — jsPDF export (lib/generatePdf.ts)
 ```
 
 ### Key types (defined in `components/ReportView.tsx`)
@@ -49,18 +52,5 @@ Report {
   url, screenshot, pageTitle, uxSummary,
   topIssues: ReportIssue[],          // severity: "low" | "medium" | "high"
   accessibilityFindings: AccessibilityFinding[]  // impact: "minor" | "moderate" | "serious" | "critical"
-}
-```
-
-### Adding the API route
-
-Create `app/api/analyze/route.ts` exporting a `POST` handler. Route Handlers use Web `Request`/`Response` APIs:
-
-```ts
-import type { NextRequest } from 'next/server'
-export async function POST(request: NextRequest) {
-  const { url } = await request.json()
-  // ... perform analysis ...
-  return Response.json(report)
 }
 ```
